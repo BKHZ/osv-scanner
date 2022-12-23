@@ -18,7 +18,7 @@ import (
 func PrintTableResults(vulnResult *models.VulnerabilityResults, outputWriter io.Writer) {
 	outputTable := table.NewWriter()
 	outputTable.SetOutputMirror(outputWriter)
-	outputTable.AppendHeader(table.Row{"OSV URL (ID In Bold)", "Ecosystem", "Package", "Version", "Source"})
+	outputTable.AppendHeader(table.Row{"OSV URL (ID In Bold)", "Ecosystem", "Package", "Severity", "Version", "Source"})
 
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	isTerminal := false
@@ -59,11 +59,14 @@ func PrintTableResults(vulnResult *models.VulnerabilityResults, outputWriter io.
 
 				outputRow = append(outputRow, strings.Join(links, "\n"))
 
+				// Source specific severity rating
+				severity := pkg.Vulnerabilities[0].DatabaseSpecific["severity"]
+
 				if pkg.Package.Ecosystem == "GIT" {
 					outputRow = append(outputRow, "GIT", pkg.Package.Version, pkg.Package.Version)
 					shouldMerge = true
 				} else {
-					outputRow = append(outputRow, pkg.Package.Ecosystem, pkg.Package.Name, pkg.Package.Version)
+					outputRow = append(outputRow, pkg.Package.Ecosystem, pkg.Package.Name, severity, pkg.Package.Version)
 				}
 
 				outputRow = append(outputRow, source.Path)
