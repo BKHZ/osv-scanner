@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/google/osv-scanner/internal/osv"
@@ -22,6 +23,7 @@ type ScannerActions struct {
 	LockfilePaths        []string
 	SBOMPaths            []string
 	DirectoryPaths       []string
+	ExcludePaths         []string
 	GitCommits           []string
 	Recursive            bool
 	SkipGit              bool
@@ -38,13 +40,22 @@ var VulnerabilitiesFoundErr = errors.New("vulnerabilities found")
 //   - Any lockfiles with scanLockfile
 //   - Any SBOM files with scanSBOMFile
 //   - Any git repositories with scanGit
-func scanDir(r *output.Reporter, query *osv.BatchedQuery, dir string, skipGit bool, recursive bool) error {
+func scanDir(r *output.Reporter, query *osv.BatchedQuery, dir string, skipGit bool, recursive bool, excludePaths []string) error {
 	root := true
 	return filepath.WalkDir(dir, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			r.PrintText(fmt.Sprintf("Failed to walk %s: %v\n", path, err))
 			return err
 		}
+
+		for _, exclude := range excludePaths {
+			re := regexp.MustCompile(exclude)
+			if len(re.FindAllSubmatch([]byte(path), -1)) > 0 {
+				r.PrintText(fmt.Sprintf("Skipping excluded path %s (matched '%s')\n", path, exclude))
+				return nil
+			}
+		}
+
 		path, err = filepath.Abs(path)
 		if err != nil {
 			r.PrintError(fmt.Sprintf("Failed to walk path %s\n", err))
@@ -315,10 +326,11 @@ func DoScan(actions ScannerActions, r *output.Reporter) (models.VulnerabilityRes
 
 	for _, dir := range actions.DirectoryPaths {
 		r.PrintText(fmt.Sprintf("Scanning dir %s\n", dir))
-		err := scanDir(r, &query, dir, actions.SkipGit, actions.Recursive)
+		err := scanDir(r, &query, dir, actions.SkipGit, actions.Recursive, actions.ExcludePaths)
 		if err != nil {
 			return models.VulnerabilityResults{}, err
 		}
+
 	}
 
 	if len(query.Queries) == 0 {

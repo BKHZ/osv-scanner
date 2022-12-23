@@ -72,6 +72,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 				Usage:   "check subdirectories",
 				Value:   false,
 			},
+			&cli.StringSliceFlag{
+				Name:      "exclude",
+				Usage:     "exclude path(s) matching `PATTERN`",
+				TakesFile: false,
+			},
 		},
 		ArgsUsage: "[directory1 directory2...]",
 		Action: func(context *cli.Context) error {
@@ -85,6 +90,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 				SkipGit:              context.Bool("skip-git"),
 				ConfigOverridePath:   context.String("config"),
 				DirectoryPaths:       context.Args().Slice(),
+				ExcludePaths:         context.StringSlice("exclude"),
 			}, r)
 
 			if errPrint := r.PrintResult(&vulnResult); errPrint != nil {
